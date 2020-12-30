@@ -56,11 +56,35 @@ class Player():
         self.hand = [] 
         self.dealt = [] #probat sa dictionaryem
         self.Fold = False
+        self.out = False
         self.turn = False
         self.all_in = False
         self.won = False
         self.role = []
         self.attributes = []
+
+        def call(self, amount):
+            self.chips -= self.gap_to_bet - self.on_table
+            self.on_table += self.gap_to_bet - self.on_table
+            self.gap_to_bet = 0
+
+        def bet(self, amount):
+            if int(amount) > int(self.chips):
+                self.all_in
+            elif int(amount) < 0:
+                print("Don't try to cheat...")
+                print("You have now folded.")
+                self.Fold = True
+            else: 
+                self.chips -= amount
+                self.on_table += amount
+
+        def all_in(self):
+            self.on_table = self.chips
+            self.chips = 0
+
+        def fold(self):
+            self.Fold = True
 
 
 #class Table(object):
@@ -94,12 +118,14 @@ class Game(object):
     def __init__(self):
         self.number_of_players = 0
         self.list_of_players = []
+        self.players_out = []
         self.cards_on_table = []
         self.game_over = False
         self.acting_player = Player()
         self.possible_actions = []
         self.cards = []
         self.pot = 0
+        self.highest_bet = 0
         self.round = 0
         self.small_blind_amount = 0
         self.big_blind_amount = 0
@@ -151,7 +177,7 @@ class Game(object):
 
     def set_player_attributes(self):
         position_of_player = 0
-        self.small_blind = self.listlist_of_players[position_of_player]
+        self.small_blind = self.list_of_players[position_of_player]
         self.small_blind.attributes.append("small blind")
         
         position_of_player += 1
@@ -165,7 +191,7 @@ class Game(object):
 
         self.first = self.list_of_players[position_of_player]
         self.first.attributes.append("first")
-        self.list_of_players.append(self.list_of_players.pop(0))
+        self.list_of_players.append(self.list_of_players.pop(0)) #da se redosljed promijeni za sljedeci krug
                 
     def deal_to_players(self):
         for player in self.list_of_players:
@@ -179,35 +205,51 @@ class Game(object):
 
     def river(self):
         self.deck.deal(self.cards_on_table, 1)
+
+    def start_game(self):
+        print("Welcome to Texas Hold'em Poker, please take your seats:")
+        game_not_over = True
+
+        while game_not_over:
+            self.start_round()
+            self.pre_flop()
+
+
+
+
+    def start_round(self):
+        self.set_player_attributes
+        print("Round" + self.round)
+        print("Players on table:")
+        for player in self.list_of_players:        
+            print(player.name + player.attributes)
         
-        
+    def pre_flop(self):
+        self.deal_to_players()
+
+        for player in self.list_of_players:
+            self.write_info()
+            self.write_options() #nastavit odavde
+
+    def write_info(self):
+        print(player.name.title())
+        print("Hand: " + player.dealt.title())
+        print("Chips: " + player.chips)
+        print("Pot: " + self.pot)
+
+        if self.cards_on_table:
+            print(self.cards_on_table.title())
 
 
-
-def run_game():
-    #Inicijalizira pygame, Settings i ekran
-    pygame.init()
-    settings = Settings()
-    screen = pygame.display.set_mode((settings.screen_width, settings.screen_height))
-    pygame.display.set_caption("Texas Hold'Em")
-    
-
-    #Glavna petlja - igra radi dok je petlja aktivna
-    while True:
-        #Unosi sa misa/tipkovnice
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-               sys.exit()
-              
-        screen.fill(settings.bg_color)
-        #refresha ekran
-        pygame.display.flip()
-
-#run_game()
 
 standardDeck = Deck()
 standardDeck.shuffle()
 game = Game()
+
+
+
+
+
 
 
 
