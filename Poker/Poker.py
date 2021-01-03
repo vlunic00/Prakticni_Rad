@@ -1,5 +1,7 @@
 import sys
 import pygame
+import operator
+import re
 import random
 
 
@@ -56,63 +58,44 @@ class Player():
         self.hand = [] 
         self.dealt = [] #probat sa dictionaryem
         self.Fold = False
-        self.out = False
         self.turn = False
+        self.done = False
         self.all_in = False
         self.won = False
         self.role = []
         self.attributes = []
 
-        def call(self, amount):
-            self.chips -= self.gap_to_bet - self.on_table
-            self.on_table += self.gap_to_bet - self.on_table
-            self.gap_to_bet = 0
+    def call(self):
+        self.chips -= self.gap_to_bet - self.on_table
+        self.on_table += self.gap_to_bet - self.on_table
+        self.gap_to_bet = 0
 
-        def bet(self, amount):
-            if int(amount) > int(self.chips):
-                self.all_in
-            elif int(amount) < 0:
-                print("Don't try to cheat...")
-                print("You have now folded.")
-                self.Fold = True
-            else: 
-                self.chips -= amount
-                self.on_table += amount
+    def bet(self, amount):
+        amount_int = isinstance(amount, int)
 
-        def all_in(self):
-            self.on_table = self.chips
-            self.chips = 0
-
-        def fold(self):
+        while amount_int != True:
+            amount = input("Invalid bet, try again: ")
+                
+                
+        if int(amount) > int(self.chips):
+            self.all_in
+        elif int(amount) < 0:
+            print("Don't try to cheat...")
+            print("You have now folded.")
             self.Fold = True
+        else: 
+            self.chips -= amount + self.gap_to_bet
+            self.on_table += amount + self.gap_to_bet
+
+    def all_in(self):
+        self.on_table += self.chips
+        self.chips = 0
+        self.all_in = True
+
+    def fold(self):
+        self.Fold = True
 
 
-#class Table(object):
-    
-   # def __init__(self):
-   #     self.head = Player()
-    #    self.head.name = None
-    #    self.head.next = None
-    
-    #def add(self, player_name):
-     #   player = Player(player_name)
-      #  current = self.head
-
-       # if self.head.name == None:
-           # self.head = player
-        #else:
-         #   while current.next != self.head:
-          #      current = current.next
-
-       # player.next = self.head
-        #current.next = player
-
-    #def print(self):
-     #   current = self.head
-      #  print(current.name, current.chips)
-       # while current.next != self.head:
-        #    current = current.next
-         #  print(current.name, current.chips)
 
 class Game(object):
     def __init__(self):
@@ -132,7 +115,7 @@ class Game(object):
         self.dealer = Player()
         self.small_blind = Player()
         self.big_blind = Player()
-        self.first = Player() #first_actor
+        self.first = Player() 
         self.winners = []
         self.deck = Deck()
 
@@ -207,44 +190,176 @@ class Game(object):
         self.deck.deal(self.cards_on_table, 1)
 
     def start_game(self):
+        #self.wipe()
         print("Welcome to Texas Hold'em Poker, please take your seats:")
         game_not_over = True
 
         while game_not_over:
             self.start_round()
             self.pre_flop()
+            game_not_over = False
 
 
 
 
     def start_round(self):
-        self.set_player_attributes
-        print("Round" + self.round)
+        self.set_player_attributes()
+        print("Round: " + str(self.round))
         print("Players on table:")
         for player in self.list_of_players:        
-            print(player.name + player.attributes)
+            print(str(player.name) + str(player.attributes))
+            if 'first' in player.attributes: 
+                player.turn = True
         
+
     def pre_flop(self):
-        self.deal_to_players()
-
+        self.deck.shuffle()
         for player in self.list_of_players:
-            self.write_info()
-            self.write_options() #nastavit odavde
+            for x in range(2):
+                player.dealt.append(self.deck.cards.pop(0))
 
-    def write_info(self):
-        print(player.name.title())
-        print("Hand: " + player.dealt.title())
-        print("Chips: " + player.chips)
-        print("Pot: " + self.pot)
+        round_not_over = True
+
+        while round_not_over:
+            for player in self.list_of_players:
+                if player.turn == True:
+                    self.write_state(player)
+                    print("\n")
+                    self.write_options(player) 
+                    self.player_input(player) 
+                    #self.wipe() 
+                    player.done = True
+                    round_not_over = self.check_if_round_over()
+                    player = self.new_turn()               
+
+
+    def write_state(self, player):
+
+        for person in self.list_of_players:
+            if person.turn != True:
+                print(person.name.title() + ": " + str(person.chips) + "\tIn pot: " + str(person.on_table))
 
         if self.cards_on_table:
+            print("CARDS ON TABLE:")
             print(self.cards_on_table.title())
+        print("\n")
 
+        print("POT:" + str(self.pot))
+
+        player.gap_to_bet = self.highest_bet - player.on_table
+
+        print(player.name.title())
+        print("HAND: " + str(player.dealt))
+        print("CHIPS: " + str(player.chips))
+        if player.on_table != 0:
+            print("IN POT: " + str(player.on_table))
+
+
+    def write_options(self, player):
+         if player.gap_to_bet == 0:
+             print("Check\tBet\tFold\tAll in")
+         elif player.gap_to_bet != 0 and player.gap_to_bet < player.chips:
+             print("Call\tRaise\tFold\tAll in")
+         elif player.gap_to_bet != 0 and player.gap_to_bet > player.chips:
+             print("Fold\tAll in")
+
+    def player_input(self, player):
+        final_action = False
+
+        while final_action != True:
+            action = input()
+            if action.lower() == "call":
+                if player.gap_to_bet != 0 and player.gap_to_bet < player.chips:
+                    player.call()
+                    final_action = True
+                elif player.gap_to_bet == 0:
+                    print("Nothing to call.")
+                elif player.gap_to_bet != 0 and player.gap_to_bet > player.chips:
+                    player.all_in()
+                    final_action = True
+
+            elif action.lower() == "fold":
+                player.fold()
+                final_action = True
+
+            elif re.search("bet", action):
+                if player.gap_to_bet != 0:
+                   answer = input("Did you mean raise? (Y/N) ")
+                   while answer.lower() != "y" and answer.lower() != "n":
+                       answer = input("Invalid answer, try again: ")
+                if answer.lower() != "y":
+                    continue
+                if re.search(r'\d+', action):
+                   bet_amount = re.search(r'\d+', action)
+                else: 
+                    bet_amount = input("How much would you like to bet: ")
+                player.bet(bet_amount)
+                final_action = True
+
+            elif re.search("raise", action):
+                if player.gap_to_bet == 0:
+                   answer = input("Did you mean bet? (Y/N) ")
+                   while answer.lower() != "y" and answer.lower() != "n":
+                       answer = input("Invalid answer, try again: ")
+                if answer.lower() != "y":
+                    continue
+                if re.search(r'\d+', action):
+                   raise_amount = re.search(r'\d+', action)
+                else: 
+                    raise_amount = input("How much would you like to raise: ")
+                player.bet(raise_amount)
+                final_action = True
+
+            elif action.lower() == "check":
+                if player.gap_to_bet != 0:
+                    print("Can't check now!")
+                else:
+                    final_action = True
+
+            elif action.lower() == "all in":
+                player.all_in()
+                final_action = True
+
+            else:
+                print("Unknown action, try again:")
+
+
+    def wipe():
+        for i in range(100):
+            print("\n")
+
+
+    def check_if_round_over(self):
+        i = 0
+        for player in self.list_of_players:
+            if player.done == True and player.gap_to_bet == 0:
+                i += 1
+
+        if i == len(self.list_of_players):
+            return False
+        else:
+            return True
+
+    def new_turn(self):
+        new_turn.position += 1
+        new_turn.position %= len(self.list_of_players)
+        self.list_of_players[new_turn.position].done = False
+        return self.list_of_players[new_turn.position]
+
+
+        new_turn.position = self.list_of_players.index(self.first)
 
 
 standardDeck = Deck()
 standardDeck.shuffle()
 game = Game()
+game.start_game()
+
+
+
+
+
+
 
 
 
