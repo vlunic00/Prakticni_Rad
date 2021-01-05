@@ -74,8 +74,8 @@ class Player():
         amount_int = isinstance(amount, int)
 
         while amount_int != True:
-            amount = input("Invalid bet, try again: ")
-                
+            amount = int(input("Invalid bet, try again: "))
+            amount_int = isinstance(amount, int)
                 
         if int(amount) > int(self.chips):
             self.all_in
@@ -84,8 +84,9 @@ class Player():
             print("You have now folded.")
             self.Fold = True
         else: 
-            self.chips -= amount + self.gap_to_bet
-            self.on_table += amount + self.gap_to_bet
+            self.chips -= int(amount) + int(self.gap_to_bet)
+            self.on_table += int(amount) + int(self.gap_to_bet)
+            
 
     def all_in(self):
         self.on_table += self.chips
@@ -98,6 +99,8 @@ class Player():
 
 
 class Game(object):
+    position_counter = 0 #za new_turn() funkciju
+
     def __init__(self):
         self.number_of_players = 0
         self.list_of_players = []
@@ -125,10 +128,10 @@ class Game(object):
            self.number_of_players = int(input("Invalid amount, try again (1-11): "))
 
         for people in range(self.number_of_players): 
-            name = input("Please eneter the player's name: ")
+            name = input("Please enter the player's name: ")
             self.list_of_players.append(Player(name))
 
-        starting_chips = input("Starting chips? ")
+        starting_chips = int(input("Starting chips? "))
         while int(starting_chips) <= 0:
            starting_chips = input("Too low, choose a bigger amount: ")
 
@@ -210,6 +213,7 @@ class Game(object):
             print(str(player.name) + str(player.attributes))
             if 'first' in player.attributes: 
                 player.turn = True
+                self.position_counter = self.list_of_players.index(player)
         
 
     def pre_flop(self):
@@ -222,15 +226,24 @@ class Game(object):
 
         while round_not_over:
             for player in self.list_of_players:
-                if player.turn == True:
+                if player.turn == True and round_not_over:
+                    self.update_player_status(player)
                     self.write_state(player)
                     print("\n")
                     self.write_options(player) 
                     self.player_input(player) 
                     #self.wipe() 
                     player.done = True
+                    player.turn = False
                     round_not_over = self.check_if_round_over()
-                    player = self.new_turn()               
+                    self.new_turn()               
+
+
+
+
+    def update_player_status(self, player):
+        player.gap_to_bet = self.pot - player.on_table
+
 
 
     def write_state(self, player):
@@ -245,9 +258,7 @@ class Game(object):
         print("\n")
 
         print("POT:" + str(self.pot))
-
-        player.gap_to_bet = self.highest_bet - player.on_table
-
+        print("\n")
         print(player.name.title())
         print("HAND: " + str(player.dealt))
         print("CHIPS: " + str(player.chips))
@@ -287,15 +298,16 @@ class Game(object):
                    answer = input("Did you mean raise? (Y/N) ")
                    while answer.lower() != "y" and answer.lower() != "n":
                        answer = input("Invalid answer, try again: ")
-                if answer.lower() != "y":
-                    continue
+                   if answer.lower() != "y":
+                       continue
                 if re.search(r'\d+', action):
-                   bet_amount = re.search(r'\d+', action)
+                   bet_amount = re.findall(r'\d+', action)
                 else: 
-                    bet_amount = input("How much would you like to bet: ")
-                player.bet(bet_amount)
+                    bet_amount = int(input("How much would you like to bet: "))
+                player.bet(int(bet_amount[0]))
+                self.pot += int(bet_amount[0])
                 final_action = True
-
+                
             elif re.search("raise", action):
                 if player.gap_to_bet == 0:
                    answer = input("Did you mean bet? (Y/N) ")
@@ -304,10 +316,11 @@ class Game(object):
                 if answer.lower() != "y":
                     continue
                 if re.search(r'\d+', action):
-                   raise_amount = re.search(r'\d+', action)
+                   raise_amount = re.findall(r'\d+', action)
                 else: 
-                    raise_amount = input("How much would you like to raise: ")
-                player.bet(raise_amount)
+                    raise_amount = int(input("How much would you like to raise: "))
+                player.bet(int(raise_amount[0]))
+                self.pot += int(raise_amout[0])
                 final_action = True
 
             elif action.lower() == "check":
@@ -341,19 +354,26 @@ class Game(object):
             return True
 
     def new_turn(self):
-        new_turn.position += 1
-        new_turn.position %= len(self.list_of_players)
-        self.list_of_players[new_turn.position].done = False
-        return self.list_of_players[new_turn.position]
+        self.position_counter += 1
+        self.position_counter %= len(self.list_of_players)
+        self.list_of_players[self.position_counter].done = False
+        self.list_of_players[self.position_counter].turn = True
+        
 
-
-        new_turn.position = self.list_of_players.index(self.first)
+   
 
 
 standardDeck = Deck()
 standardDeck.shuffle()
 game = Game()
 game.start_game()
+
+
+
+
+
+
+
 
 
 
