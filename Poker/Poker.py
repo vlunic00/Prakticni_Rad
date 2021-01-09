@@ -61,7 +61,7 @@ class Player():
         self.Fold = False
         self.turn = False
         self.done = False
-        self.all_in = False
+        self.is_all_in = False
         self.won = False
         self.role = []
         self.attributes = []
@@ -78,9 +78,7 @@ class Player():
             amount = int(input("Invalid bet, try again: "))
             amount_int = isinstance(amount, int)
                 
-        if int(amount) > int(self.chips):
-            self.all_in
-        elif int(amount) < 0:
+        if int(amount) < 0:
             print("Don't try to cheat...")
             print("You have now folded.")
             self.Fold = True
@@ -95,7 +93,7 @@ class Player():
     def all_in(self):
         self.on_table += self.chips
         self.chips = 0
-        self.all_in = True
+        self.is_all_in = True
 
     def fold(self):
         self.Fold = True
@@ -215,23 +213,35 @@ class Game(object):
                 self.pot += int(self.big_blind_amount)
                 player.attributes.append("highest bidder")
 
+        self.pot = 0
+        self.winners.clear()
+        for player in self.list_of_players:
+            player.dealt.clear()
+            player.on_table = 0
+            player.gap_to_bet = 0
+            player.all_in = False
+
     def pre_flop(self):
         self.deck.shuffle()
         for player in self.list_of_players:
             for x in range(2):
                 player.dealt.append(self.deck.cards.pop(0))
 
+    def live_round(self):
+
         round_not_over = True
 
         while round_not_over:
             for player in self.list_of_players:
                 if player.turn == True and round_not_over:
-                    self.update_player_status()
-                    self.write_state(player)
-                    print("\n")
-                    self.write_options(player) 
-                    self.player_input(player) 
-                    #self.wipe() 
+                    if player.Fold != True and player.is_all_in != True:
+                        self.update_player_status()
+                        self.write_state(player)
+                        print("\n")
+                        self.write_options(player) 
+                        self.player_input(player) 
+                        #self.wipe() 
+
                     player.done = True
                     player.turn = False
                     round_not_over = self.check_if_round_over()
@@ -255,9 +265,12 @@ class Game(object):
             if person.turn != True:
                 print(person.name.title() + ": " + str(person.chips) + "\tIn pot: " + str(person.on_table))
 
+        print("\n")
+
         if self.cards_on_table:
             print("CARDS ON TABLE:")
-            print(self.cards_on_table.title())
+            for card in self.cards_on_table:
+                print(card)
         print("\n")
 
         print("POT:" + str(self.pot))
@@ -307,14 +320,26 @@ class Game(object):
                        continue
                 if re.search(r'\d+', action):
                    bet_amount = re.findall(r'\d+', action)
-                   player.bet(int(bet_amount[0]))
-                   self.pot += int(bet_amount[0])
-                   self.highest_bid = int(bet_amount[0])
+                   if int(bet_amount[0]) > player.chips:
+                       if self.highest_bid < player.chips:
+                           self.highest_bid = player.chips
+                       self.pot += player.chips
+                       player.all_in()
+                   else:
+                       player.bet(int(bet_amount[0]))
+                       self.pot += int(bet_amount[0])
+                       self.highest_bid = int(bet_amount[0])
                 else: 
                     bet_amount = int(input("How much would you like to bet: "))
-                    player.bet(bet_amount)
-                    self.pot += bet_amount
-                    self.highest_bid = bet_amount
+                    if bet_amount > player.chips:
+                       if self.highest_bid < player.chips:
+                           self.highest_bid = player.chips
+                       self.pot += player.chips
+                       player.all_in()
+                    else:
+                       player.bet(bet_amount)
+                       self.pot += bet_amount
+                       self.highest_bid = bet_amount
 
                 for people in self.list_of_players:
                     if people.name != player.name and "highest bidder" in people.attributes:
@@ -331,14 +356,26 @@ class Game(object):
                        continue
                 if re.search(r'\d+', action):
                    raise_amount = re.findall(r'\d+', action)
-                   player.bet(int(raise_amount[0]))
-                   self.pot += int(raise_amount[0])
-                   self.highest_bid = int(raise_amount[0])
+                   if int(raise_amount[0]) > player.chips:
+                       if self.highest_bid < player.chips:
+                           self.highest_bid = player.chips
+                       self.pot += player.chips
+                       player.all_in()
+                   else:
+                       player.bet(int(raise_amount[0]))
+                       self.pot += int(raise_amount[0])
+                       self.highest_bid = int(raise_amount[0])
                 else: 
                     raise_amount = int(input("How much would you like to raise: "))
-                    player.bet(raise_amount)
-                    self.pot += raise_amount
-                    self.highest_bid = raise_amount
+                    if raise_amount > player.chips:
+                       if self.highest_bid < player.chips:
+                           self.highest_bid = player.chips
+                       self.pot += player.chips
+                       player.all_in()
+                    else:
+                        player.bet(raise_amount)
+                        self.pot += raise_amount
+                        self.highest_bid = raise_amount
 
                 for people in self.list_of_players:
                     if people.name != player.name and "highest bidder" in people.attributes:
@@ -380,7 +417,7 @@ class Game(object):
         self.update_player_status()
         i = 0
         for player in self.list_of_players:
-            if player.done == True and player.gap_to_bet == 0:
+            if player.done == True and player.gap_to_bet == 0 or player.Fold == True or player.is_all_in == True:
                 i += 1
 
         if i == len(self.list_of_players):
@@ -394,6 +431,24 @@ class Game(object):
         self.list_of_players[self.position_counter].done = False
         self.list_of_players[self.position_counter].turn = True    
 
+
+    def check_for_winners_pre_river(self):
+        for player in self.list_of_players:
+            player.done = False
+            if player.Fold != True:
+                self.winners.append(player)
+        if len(self.winners) == 1:
+            self.winners[0].chips += self.pot
+        else:
+            self.winners.clear()
+
+
+    def check_for_losers(self):
+        for player in self.list_of_players:
+            if player.chips == 0:
+                self.players_out.append(self.list_of_players.pop(self.list_of_players.index(player)))
+
+
     def start_game(self):
         #self.wipe()
         print("Welcome to Texas Hold'em Poker, please take your seats:")
@@ -403,6 +458,27 @@ class Game(object):
         while game_not_over:
             self.start_round()
             self.pre_flop()
+            self.live_round()
+            self.check_for_winners_pre_river()
+            self.check_for_losers()
+            if self.winners:
+                continue
+            self.flop()
+            self.live_round()
+            self.check_for_winners_pre_river()
+            self.check_for_losers()
+            if self.winners:
+                continue
+            self.turn()
+            self.live_round()
+            self.check_for_winners_pre_river()
+            self.check_for_losers()
+            if self.winners:
+                continue
+            self.river()
+            self.live_round()
+            self.check_for_winners() #nastavit odavde
+            self.check_for_losers()
             game_not_over = False
 
 
@@ -412,15 +488,13 @@ class Game(object):
         
 
    #Napravit funkciju za odredit jacinu karata i pobjednika
+   #Popravit redosljed igre
 
 
 standardDeck = Deck()
 standardDeck.shuffle()
 game = Game()
 game.start_game()
-
-
-
 
 
 
